@@ -276,7 +276,7 @@ func runProtoc(goOut string, includes, fnames []string, log *logrus.Logger) ([]b
 // passing go_out and include flags specified in goOut and includes respectively.
 // It returns combined output from stdout and stderr.
 func runGrpcGateway(goOut string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
-	args := []string{"--grpc-gateway_out=logtostderr=true:" + goOut}
+	args := []string{"--grpc-gateway_out=allow_delete_body=true,logtostderr=true:" + goOut}
 	for _, inc := range includes {
 		args = append(args, "-I", inc)
 	}
