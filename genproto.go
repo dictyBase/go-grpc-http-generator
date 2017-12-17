@@ -170,7 +170,7 @@ func genProtoAction(c *cli.Context) error {
 		}
 		// gateway plugin does not follow the package path, so
 		// the exact path has to be given
-		goutput := filepath.Join(os.Getenv("GOPATH"), "src", pkg)
+		goutput := filepath.Join(os.Getenv("GOPATH"), "src")
 		if out, err := runGrpcGateway(goutput, includeDir, names, log); err != nil {
 			return cli.NewExitError(
 				fmt.Sprintf("error in running protoc(grpc-gateway plugin) with output %s and error %s", string(out), err),
