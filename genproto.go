@@ -182,6 +182,17 @@ func genProtoAction(c *cli.Context) error {
 				string(out),
 			)
 		}
+		if out, err := genSwaggerDefinition(goutput, includeDir, names, log); err != nil {
+			return cli.NewExitError(
+				fmt.Sprintf("error in running protoc(swagger generator plugin) with output %s and error %s", string(out), err),
+				2,
+			)
+			log.Infof(
+				"ran protoc(swagger generator plugin) command on files %s with output %s",
+				strings.Join(fnames, " "),
+				string(out),
+			)
+		}
 	}
 	return nil
 }
@@ -277,6 +288,17 @@ func runProtoc(goOut string, includes, fnames []string, log *logrus.Logger) ([]b
 // It returns combined output from stdout and stderr.
 func runGrpcGateway(goOut string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
 	args := []string{"--grpc-gateway_out=allow_delete_body=true,logtostderr=true:" + goOut}
+	for _, inc := range includes {
+		args = append(args, "-I", inc)
+	}
+	args = append(args, "-I", filepath.Dir(fnames[0]))
+	args = append(args, fnames...)
+	log.Debugf("going to run protoc command %s", strings.Join(args, "\n"))
+	return exec.Command("protoc", args...).CombinedOutput()
+}
+
+func genSwaggerDefinition(goOut string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
+	args := []string{"--swagger_out=allow_delete_body=true,logtostderr=true:" + goOut}
 	for _, inc := range includes {
 		args = append(args, "-I", inc)
 	}
