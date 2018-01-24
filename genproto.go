@@ -151,7 +151,7 @@ func genProtoAction(c *cli.Context) error {
 		if !strings.HasPrefix(pkg, c.String("prefix")) {
 			continue
 		}
-		includeDir := []string{apiDir, protoDir, dictyDir}
+		includeDir := []string{apiDir, protoDir, dictyDir, output}
 		includeDir = append(includeDir, filepath.Dir(fnames[0]))
 		mapfn := func(path string) string {
 			return filepath.Base(path)
@@ -273,7 +273,10 @@ func goPkg(fname string) (string, error) {
 // passing go_out and include flags specified in goOut and includes respectively.
 // protoc returns combined output from stdout and stderr.
 func runProtoc(goOut string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
-	args := []string{"--go_out=plugins=grpc:" + goOut}
+	args := []string{
+		"--go_out=plugins=grpc:" + goOut,
+		"--govalidators_out=" + goOut,
+	}
 	for _, inc := range includes {
 		args = append(args, "-I", inc)
 	}
