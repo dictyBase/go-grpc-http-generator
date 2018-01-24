@@ -65,6 +65,14 @@ func main() {
 			Usage: "format of the logging out, either of json or text",
 			Value: "text",
 		},
+		cli.BoolFlag{
+			Name:  "swagger-gen",
+			Usage: "generate swagger definition files from grpc-gateway definition",
+		},
+		cli.StringFlag{
+			Name:  "swagger-output",
+			Usage: "Output folder for swagger definition files, should be set with swagger-gen option",
+		},
 	}
 	app.Before = validateGenProto
 	app.Action = genProtoAction
@@ -83,6 +91,14 @@ func validateGenProto(c *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(
 				fmt.Sprintf("command %s not found %s", err),
+				2,
+			)
+		}
+	}
+	if c.Bool("swagger-gen") {
+		if len(c.String("swagger-output")) == 0 {
+			return cli.NewExitError(
+				"*swagger-ouput* have to be set for *swagger-gen* to work",
 				2,
 			)
 		}
@@ -182,7 +198,10 @@ func genProtoAction(c *cli.Context) error {
 				string(out),
 			)
 		}
-		if out, err := genSwaggerDefinition(goutput, includeDir, names, log); err != nil {
+		if !c.Bool("swagger-gen") {
+			continue
+		}
+		if out, err := genSwaggerDefinition(c.String("swagger-output"), includeDir, names, log); err != nil {
 			return cli.NewExitError(
 				fmt.Sprintf("error in running protoc(swagger generator plugin) with output %s and error %s", string(out), err),
 				2,
