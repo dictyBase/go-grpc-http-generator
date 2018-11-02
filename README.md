@@ -31,6 +31,8 @@ GLOBAL OPTIONS:
    --dictybase-repo value    Repository containing protocol buffer definitions of dictybase api and services, will be checked out or updated under GOPATH (default: "https://github.com/dictyBase/dictybaseapis")
    --log-level value         log level for the application (default: "error")
    --log-format value        format of the logging out, either of json or text (default: "text")
+   --swagger-gen             generate swagger definition files from grpc-gateway definition
+   --swagger-output value    Output folder for swagger definition files, should be set with swagger-gen option
    --help, -h                show help
    --version, -v             print the version
 ```
