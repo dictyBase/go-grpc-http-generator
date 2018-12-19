@@ -13,8 +13,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/urfave/cli.v1"
+	git "gopkg.in/src-d/go-git.v4"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 var goPkgOptRe = regexp.MustCompile(`(?m)^option go_package = (.*);`)
@@ -86,7 +86,7 @@ func validateGenProto(c *cli.Context) error {
 		return cli.NewExitError("GOPATH env is not defined", 2)
 	}
 	// check if all the required binaries are in path
-	for _, cmd := range []string{"protoc", "protoc-gen-go", "protoc-gen-grpc-gateway"} {
+	for _, cmd := range []string{"protoc", "protoc-gen-go", "protoc-gen-grpc-gateway", "protoc-gen-doc"} {
 		_, err := exec.LookPath(cmd)
 		if err != nil {
 			return cli.NewExitError(
@@ -198,6 +198,28 @@ func genProtoAction(c *cli.Context) error {
 				string(out),
 			)
 		}
+		out, err := genProtoDocs(
+			goutput,
+			filepath.Join(goutput, c.String("prefix")),
+			includeDir,
+			names,
+			log,
+		)
+		if err != nil {
+			return cli.NewExitError(
+				fmt.Sprintf(
+					"error in running protoc(protoc-gen-doc plugin) with output %s and error %s",
+					string(out),
+					err,
+				),
+				2,
+			)
+		}
+		log.Infof(
+			"ran protoc(protoc-gen-doc plugin) command on files %s with output %s",
+			strings.Join(fnames, " "),
+			string(out),
+		)
 		if !c.Bool("swagger-gen") {
 			continue
 		}
@@ -327,6 +349,21 @@ func genSwaggerDefinition(goOut string, includes, fnames []string, log *logrus.L
 	args = append(args, "-I", filepath.Dir(fnames[0]))
 	args = append(args, fnames...)
 	log.Debugf("going to run protoc command %s", strings.Join(args, "\n"))
+	return exec.Command("protoc", args...).CombinedOutput()
+}
+
+func genProtoDocs(goOut, folder string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
+	mdname := strings.Split(filepath.Base(fnames[0]), ".")[0]
+	args := []string{
+		fmt.Sprintf("--doc_out=%s", filepath.Join(folder, "docs")),
+		fmt.Sprintf("--doc_opt=%s,%s.md", "markdown", mdname),
+	}
+	for _, inc := range includes {
+		args = append(args, "-I", inc)
+	}
+	args = append(args, "-I", filepath.Dir(fnames[0]))
+	args = append(args, fnames...)
+	log.Debugf("going to run protoc doc command %s", strings.Join(args, "\n"))
 	return exec.Command("protoc", args...).CombinedOutput()
 }
 
