@@ -356,7 +356,7 @@ func genProtoDocs(goOut, folder string, includes, fnames []string, log *logrus.L
 	mdname := strings.Split(filepath.Base(fnames[0]), ".")[0]
 	args := []string{
 		fmt.Sprintf("--doc_out=%s", filepath.Join(folder, "docs")),
-		fmt.Sprintf("--doc_opt=%s,%s.md", "markdown", mdname),
+		fmt.Sprintf("--doc_opt=%s,%s.html", "html", mdname),
 	}
 	for _, inc := range includes {
 		args = append(args, "-I", inc)
