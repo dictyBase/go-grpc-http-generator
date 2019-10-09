@@ -52,6 +52,11 @@ func main() {
 			Value: "https://github.com/google/protobuf",
 		},
 		cli.StringFlag{
+			Name:  "validator-repo",
+			Usage: "Repository containing protocol buffer definitions for validation, will be checked out",
+			Value: "https://github.com/mwitkow/go-proto-validators.git",
+		},
+		cli.StringFlag{
 			Name:  "input-folder,i",
 			Usage: "Folder containing protocol buffer definitions, will be looked up recursively",
 		},
@@ -108,7 +113,27 @@ func validateGenProto(c *cli.Context) error {
 
 func genProtoAction(c *cli.Context) error {
 	log := getLogger(c)
+	if len(output) == 0 {
+		output = filepath.Join(os.Getenv("GOPATH"), "src")
+	}
 	dictyDir := c.String("input-folder")
+
+	pkgFiles, err := mapPath2Proto(dictyDir)
+	if err != nil {
+		return cli.NewExitError(
+			fmt.Sprintf("%s directory walking errors %s", dictyDir, err),
+			2,
+		)
+	}
+
+	valProtoDir, err := cloneGitRepo(c.String("validator-repo"), "master")
+	if err != nil {
+		return cli.NewExitError(
+			fmt.Sprintf("error in cloning repo %s %s", c.String("validator-repo"), err),
+			2,
+		)
+	}
+	log.Debugf("cloned repo %s at %s", c.String("validator-repo"), valProtoDir)
 	apiDir, err := cloneGitRepo(c.String("api-repo"), "master")
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
@@ -120,47 +145,30 @@ func genProtoAction(c *cli.Context) error {
 	}
 	log.Debugf("cloned repo %s at %s", c.String("proto-repo"), protoDir)
 	protoDir = filepath.Join(protoDir, "src")
-	pkgFiles := make(map[string][]string)
-	walkFn := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() || !strings.HasSuffix(path, ".proto") {
-			return nil
-		}
-		pkg, err := goPkg(path)
-		if err != nil {
-			return err
-		}
-		pkgFiles[pkg] = append(pkgFiles[pkg], path)
-		return nil
-	}
-	if err := filepath.Walk(dictyDir, walkFn); err != nil {
-		return cli.NewExitError(
-			fmt.Sprintf("%s directory walking errors %s", dictyDir, err),
-			2,
-		)
-	}
-	if len(output) == 0 {
-		output = filepath.Join(os.Getenv("GOPATH"), "src")
+
+	// include
+	//	i)   cloned protocol buffer defintions
+	//	ii)  folder containing the protocol buffer files to compile
+	//	iii) validate proto files
+	//	iv)  output folder
+	baseIncludeDir := []string{
+		apiDir,
+		protoDir,
+		dictyDir,
+		valProtoDir,
+		output,
 	}
 	for pkg, fnames := range pkgFiles {
 		if !strings.HasPrefix(pkg, c.String("prefix")) {
 			continue
 		}
-		// include cloned protocol buffer defintions
-		includeDir := []string{apiDir, protoDir}
-		// include the folder containing the protocol buffer files to compile
-		includeDir = append(includeDir, dictyDir)
-		// include the output folder
-		includeDir = append(includeDir, output)
+		var includeDir []string
 		// include the golang package folder dir as given in the proto defintion files
-		includeDir = append(includeDir, filepath.Dir(fnames[0]))
-		mapfn := func(path string) string {
-			return filepath.Base(path)
-		}
+		includeDir = append(baseIncludeDir, filepath.Dir(fnames[0]))
 		// extract the protobuf file names from the full path
-		names := Map(fnames, mapfn)
+		names := Map(fnames, func(path string) string {
+			return filepath.Base(path)
+		})
 		out, err := runProtoc(output, includeDir, names, log)
 		if err != nil {
 			return cli.NewExitError(
@@ -330,4 +338,27 @@ func Map(a []string, fn func(string) string) []string {
 		sl[i] = fn(v)
 	}
 	return sl
+}
+
+// mapPath2Proto maps go package import path to their corresponding proto files
+func mapPath2Proto(path string) (map[string][]string, error) {
+	pkgFiles := make(map[string][]string)
+	walkFn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() || !strings.HasSuffix(path, ".proto") {
+			return nil
+		}
+		pkg, err := goPkg(path)
+		if err != nil {
+			return err
+		}
+		pkgFiles[pkg] = append(pkgFiles[pkg], path)
+		return nil
+	}
+	if err := filepath.Walk(path, walkFn); err != nil {
+		return pkgFiles, err
+	}
+	return pkgFiles, nil
 }
