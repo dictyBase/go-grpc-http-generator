@@ -48,12 +48,22 @@ func main() {
 		cli.StringFlag{
 			Name:  "proto-repo",
 			Usage: "Repository containing core protocol buffer definitions from google, will be checked out",
-			Value: "https://github.com/google/protobuf",
+			Value: "https://github.com/protocolbuffers/protobuf",
+		},
+		cli.StringFlag{
+			Name:  "proto-repo-tag",
+			Usage: "Repository tag for protocol buffer repo",
+			Value: "v3.9.2",
 		},
 		cli.StringFlag{
 			Name:  "validator-repo",
 			Usage: "Repository containing protocol buffer definitions for validation, will be checked out",
 			Value: "https://github.com/mwitkow/go-proto-validators.git",
+		},
+		cli.StringFlag{
+			Name:  "validator-repo-tag",
+			Usage: "Repository tag for validation protocol buffer",
+			Value: "v0.2.0",
 		},
 		cli.StringFlag{
 			Name:  "input-folder,i",
@@ -125,7 +135,7 @@ func genProtoAction(c *cli.Context) error {
 		)
 	}
 
-	valProtoDir, err := cloneGitRepo(c.String("validator-repo"), "master")
+	valProtoDir, err := cloneGitTag(c.String("validator-repo"), c.String("validator-repo-tag"))
 	if err != nil {
 		return cli.NewExitError(
 			fmt.Sprintf("error in cloning repo %s %s", c.String("validator-repo"), err),
@@ -138,7 +148,7 @@ func genProtoAction(c *cli.Context) error {
 		return cli.NewExitError(err.Error(), 2)
 	}
 	log.Debugf("cloned repo %s at %s", c.String("api-repo"), apiDir)
-	protoDir, err := cloneGitRepo(c.String("proto-repo"), "master")
+	protoDir, err := cloneGitTag(c.String("proto-repo"), c.String("proto-repo-tag"))
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
@@ -237,6 +247,19 @@ func genProtoAction(c *cli.Context) error {
 		)
 	}
 	return nil
+}
+
+func cloneGitTag(repo, tag string) (string, error) {
+	dir, err := ioutil.TempDir(os.TempDir(), "gclone")
+	if err != nil {
+		return "", fmt.Errorf("error in creating temp dir %s", err)
+	}
+	_, err = git.PlainClone(dir, false, &git.CloneOptions{
+		URL:           repo,
+		SingleBranch:  true,
+		ReferenceName: plumbing.NewTagReferenceName(tag),
+	})
+	return dir, err
 }
 
 func cloneGitRepo(repo, branch string) (string, error) {
