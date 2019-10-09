@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
 	git "gopkg.in/src-d/go-git.v4"
@@ -169,14 +168,14 @@ func genProtoAction(c *cli.Context) error {
 		names := Map(fnames, func(path string) string {
 			return filepath.Base(path)
 		})
-		out, err := runProtoc(output, includeDir, names, log)
+		out, err := runProtoc(output, includeDir, names)
 		if err != nil {
 			return cli.NewExitError(
 				fmt.Sprintf("error in running protoc with output %s and error %s", string(out), err),
 				2,
 			)
 		}
-		log.Infof(
+		log.Debugf(
 			"ran protoc command on files %s with output %s",
 			strings.Join(fnames, " "),
 			string(out),
@@ -184,53 +183,58 @@ func genProtoAction(c *cli.Context) error {
 		// gateway plugin does not follow the package path, so
 		// the exact path has to be given
 		//goutput := filepath.Join(os.Getenv("GOPATH"), "src")
-		//if out, err := runGrpcGateway(goutput, includeDir, names, log); err != nil {
-		//return cli.NewExitError(
-		//fmt.Sprintf("error in running protoc(grpc-gateway plugin) with output %s and error %s", string(out), err),
-		//2,
-		//)
-		//log.Infof(
-		//"ran protoc(grpc-gateway plugin) command on files %s with output %s",
-		//strings.Join(fnames, " "),
-		//string(out),
-		//)
-		//}
-		//out, err := genProtoDocs(
-		//goutput,
-		//filepath.Join(goutput, c.String("prefix")),
-		//includeDir,
-		//names,
-		//log,
-		//)
-		//if err != nil {
-		//return cli.NewExitError(
-		//fmt.Sprintf(
-		//"error in running protoc(protoc-gen-doc plugin) with output %s and error %s",
-		//string(out),
-		//err,
-		//),
-		//2,
-		//)
-		//}
-		//log.Infof(
-		//"ran protoc(protoc-gen-doc plugin) command on files %s with output %s",
-		//strings.Join(fnames, " "),
-		//string(out),
-		//)
-		//if !c.Bool("swagger-gen") {
-		//continue
-		//}
-		//if out, err := genSwaggerDefinition(c.String("swagger-output"), includeDir, names, log); err != nil {
-		//return cli.NewExitError(
-		//fmt.Sprintf("error in running protoc(swagger generator plugin) with output %s and error %s", string(out), err),
-		//2,
-		//)
-		//log.Infof(
-		//"ran protoc(swagger generator plugin) command on files %s with output %s",
-		//strings.Join(fnames, " "),
-		//string(out),
-		//)
-		//}
+		out, err = runGrpcGateway(output, includeDir, names)
+		if err != nil {
+			return cli.NewExitError(
+				fmt.Sprintf("error in running protoc(grpc-gateway plugin) with output %s and error %s", string(out), err),
+				2,
+			)
+		}
+		log.Infof(
+			"ran protoc(grpc-gateway plugin) command on files %s with output %s",
+			strings.Join(fnames, " "),
+			string(out),
+		)
+
+		out, err = genProtoDocs(
+			output,
+			filepath.Join(output, c.String("prefix")),
+			includeDir,
+			names,
+		)
+		if err != nil {
+			return cli.NewExitError(
+				fmt.Sprintf(
+					"error in running protoc(protoc-gen-doc plugin) with output %s and error %s",
+					string(out),
+					err,
+				),
+				2,
+			)
+		}
+		log.Debugf(
+			"ran protoc(protoc-gen-doc plugin) command on files %s with output %s",
+			strings.Join(fnames, " "),
+			string(out),
+		)
+		if !c.Bool("swagger-gen") {
+			continue
+		}
+		out, err = genSwaggerDefinition(c.String("swagger-output"), includeDir, names)
+		if err != nil {
+			return cli.NewExitError(
+				fmt.Sprintf(
+					"error in running protoc(swagger generator plugin) with output %s and error %s",
+					string(out), err,
+				),
+				2,
+			)
+		}
+		log.Debugf(
+			"ran protoc(swagger generator plugin) command on files %s with output %s",
+			strings.Join(fnames, " "),
+			string(out),
+		)
 	}
 	return nil
 }
@@ -273,7 +277,7 @@ func goPkg(fname string) (string, error) {
 // runProtoc executes the "protoc" command on files named in fnames,
 // passing go_out and include flags specified in goOut and includes respectively.
 // protoc returns combined output from stdout and stderr.
-func runProtoc(goOut string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
+func runProtoc(goOut string, includes, fnames []string) ([]byte, error) {
 	args := []string{
 		"--go_out=plugins=grpc:" + goOut,
 		"--govalidators_out=" + goOut,
@@ -283,39 +287,40 @@ func runProtoc(goOut string, includes, fnames []string, log *logrus.Logger) ([]b
 	}
 	args = append(args, "-I", filepath.Dir(fnames[0]))
 	args = append(args, fnames...)
-	log.Debugf("going to run protoc command\n %s", strings.Join(args, "\n"))
 	return exec.Command("protoc", args...).CombinedOutput()
 }
 
 // runGrpcGateway executes "protoc" with grpc-gateway plugin on files named in fnames,
 // passing go_out and include flags specified in goOut and includes respectively.
 // It returns combined output from stdout and stderr.
-func runGrpcGateway(goOut string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
+func runGrpcGateway(goOut string, includes, fnames []string) ([]byte, error) {
 	args := []string{"--grpc-gateway_out=allow_delete_body=true,logtostderr=true:" + goOut}
 	for _, inc := range includes {
 		args = append(args, "-I", inc)
 	}
 	args = append(args, "-I", filepath.Dir(fnames[0]))
 	args = append(args, fnames...)
-	log.Debugf("going to run protoc command %s", strings.Join(args, "\n"))
 	return exec.Command("protoc", args...).CombinedOutput()
 }
 
-func genSwaggerDefinition(goOut string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
+func genSwaggerDefinition(goOut string, includes, fnames []string) ([]byte, error) {
 	args := []string{"--swagger_out=allow_delete_body=true,logtostderr=true:" + goOut}
 	for _, inc := range includes {
 		args = append(args, "-I", inc)
 	}
 	args = append(args, "-I", filepath.Dir(fnames[0]))
 	args = append(args, fnames...)
-	log.Debugf("going to run protoc command %s", strings.Join(args, "\n"))
 	return exec.Command("protoc", args...).CombinedOutput()
 }
 
-func genProtoDocs(goOut, folder string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
+func genProtoDocs(goOut, folder string, includes, fnames []string) ([]byte, error) {
+	doc := filepath.Join(folder, "docs")
+	if err := os.MkdirAll(doc, 0775); err != nil {
+		return []byte{}, err
+	}
 	mdname := strings.Split(filepath.Base(fnames[0]), ".")[0]
 	args := []string{
-		fmt.Sprintf("--doc_out=%s", filepath.Join(folder, "docs")),
+		fmt.Sprintf("--doc_out=%s", doc),
 		fmt.Sprintf("--doc_opt=%s,%s.html", "html", mdname),
 	}
 	for _, inc := range includes {
@@ -323,7 +328,6 @@ func genProtoDocs(goOut, folder string, includes, fnames []string, log *logrus.L
 	}
 	args = append(args, "-I", filepath.Dir(fnames[0]))
 	args = append(args, fnames...)
-	log.Debugf("going to run protoc doc command %s", strings.Join(args, "\n"))
 	return exec.Command("protoc", args...).CombinedOutput()
 }
 
