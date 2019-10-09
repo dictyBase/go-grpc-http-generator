@@ -63,7 +63,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "log-format",
 			Usage: "format of the logging out, either of json or text",
-			Value: "text",
+			Value: "json",
 		},
 		cli.BoolFlag{
 			Name:  "swagger-gen",
@@ -275,7 +275,7 @@ func runProtoc(goOut string, includes, fnames []string, log *logrus.Logger) ([]b
 	}
 	args = append(args, "-I", filepath.Dir(fnames[0]))
 	args = append(args, fnames...)
-	log.Debugf("going to run protoc command %s", strings.Join(args, "\n"))
+	log.Debugf("going to run protoc command\n %s", strings.Join(args, "\n"))
 	return exec.Command("protoc", args...).CombinedOutput()
 }
 
