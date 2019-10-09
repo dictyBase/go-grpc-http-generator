@@ -12,9 +12,10 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 
 	git "gopkg.in/src-d/go-git.v4"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 var goPkgOptRe = regexp.MustCompile(`(?m)^option go_package = (.*);`)
@@ -42,12 +43,12 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "api-repo",
-			Usage: "Repository containing protocol buffer definitions of google apis, will be check out or updated under GOPATH",
+			Usage: "Repository containing protocol buffer definitions of google apis, will be check out",
 			Value: "https://github.com/googleapis/googleapis",
 		},
 		cli.StringFlag{
 			Name:  "proto-repo",
-			Usage: "Repository containing core protocol buffer definitions from google, will be checked out or updated under GOPATH",
+			Usage: "Repository containing core protocol buffer definitions from google, will be checked out",
 			Value: "https://github.com/google/protobuf",
 		},
 		cli.StringFlag{
@@ -90,7 +91,7 @@ func validateGenProto(c *cli.Context) error {
 		_, err := exec.LookPath(cmd)
 		if err != nil {
 			return cli.NewExitError(
-				fmt.Sprintf("command %s not found %s", err),
+				fmt.Sprintf("command %s not found %s", cmd, err),
 				2,
 			)
 		}
@@ -123,11 +124,11 @@ func genProtoAction(c *cli.Context) error {
 		}
 		log.Infof("cloned repository %s at path %s", c.String("dictybase-repo"), dictyDir)
 	}
-	apiDir, err := cloneOrUpdateGitRep(c.String("api-repo"), log)
+	apiDir, err := cloneGitRepo(c.String("api-repo"), "master")
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
-	protoDir, err := cloneOrUpdateGitRep(c.String("proto-repo"), log)
+	protoDir, err := cloneGitRepo(c.String("proto-repo"), "master")
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
@@ -156,22 +157,22 @@ func genProtoAction(c *cli.Context) error {
 	if len(output) == 0 {
 		output = filepath.Join(os.Getenv("GOPATH"), "src")
 	}
-	//err = os.MkdirAll(output, 0775)
-	//if err != nil {
-	//return cli.NewExitError(
-	//fmt.Sprintf("unable to create output folder %s %s", output, err),
-	//2,
-	//)
-	//}
 	for pkg, fnames := range pkgFiles {
 		if !strings.HasPrefix(pkg, c.String("prefix")) {
 			continue
 		}
-		includeDir := []string{apiDir, protoDir, dictyDir, output}
+		// include cloned protocol buffer defintions
+		includeDir := []string{apiDir, protoDir}
+		// include the folder containing the protocol buffer files to compile
+		includeDir = append(includeDir, dictyDir)
+		// include the output folder
+		includeDir = append(includeDir, output)
+		// include the golang package folder dir as given in the proto defintion files
 		includeDir = append(includeDir, filepath.Dir(fnames[0]))
 		mapfn := func(path string) string {
 			return filepath.Base(path)
 		}
+		// extract the protobuf file names from the full path
 		names := Map(fnames, mapfn)
 		if out, err := runProtoc(output, includeDir, names, log); err != nil {
 			return cli.NewExitError(
@@ -248,44 +249,17 @@ func getFilePathFromRepo(repo string) (string, error) {
 	return path, nil
 }
 
-func cloneOrUpdateGitRep(repo string, log *logrus.Logger) (string, error) {
-	path, err := getFilePathFromRepo(repo)
+func cloneGitRepo(repo, branch string) (string, error) {
+	dir, err := ioutil.TempDir(os.TempDir(), "gclone")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error in creating temp dir %s", err)
 	}
-	// if the repository exists in the file system
-	// update it
-	if _, err := os.Stat(path); err == nil {
-		log.Debugf("repository %s exist at path %s, going to update", repo, path)
-		// get instance of a repository
-		r, err := git.PlainOpen(path)
-		if err != nil {
-			return "", fmt.Errorf("unable to open repository %s", err)
-		}
-		// Get the working directory
-		w, err := r.Worktree()
-		if err != nil {
-			return "", fmt.Errorf("unable to open work tree %s", err)
-		}
-		err = w.Pull(&git.PullOptions{RemoteName: "origin"})
-		if err != nil {
-			if err == git.NoErrAlreadyUpToDate {
-				log.Infof("repository %s is uptodate", repo)
-			} else {
-				return "", fmt.Errorf("unable to pull %s", err)
-			}
-		} else {
-			log.Infof("updated repository %s at path %s", repo, path)
-		}
-	} else { // clone the repository
-		log.Debugf("repository %s does not exist at path %s, going to clone", repo, path)
-		_, err = git.PlainClone(path, false, &git.CloneOptions{URL: repo})
-		if err != nil {
-			return "", fmt.Errorf("unable to clone %s repo %s", repo, err)
-		}
-		log.Infof("cloned repository %s at path %s", repo, path)
-	}
-	return path, nil
+	_, err = git.PlainClone(dir, false, &git.CloneOptions{
+		URL:           repo,
+		SingleBranch:  true,
+		ReferenceName: plumbing.NewBranchReferenceName(branch),
+	})
+	return dir, err
 }
 
 // goPkg reports the import path declared in the given file's
