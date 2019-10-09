@@ -14,6 +14,6 @@ require (
 	golang.org/x/sys v0.0.0-20190416152802-12500544f89f // indirect
 	gopkg.in/src-d/go-billy.v4 v4.3.0 // indirect
 	gopkg.in/src-d/go-git-fixtures.v3 v3.4.0 // indirect
-	gopkg.in/src-d/go-git.v4 v4.11.0
+	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/urfave/cli.v1 v1.20.0
 )
