@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +28,8 @@ func main() {
 	app := cli.NewApp()
 	app.Usage = "cli for generating go gRPC and gRPC-gateway source code for dictybase api and services"
 	app.Name = "genproto"
-	app.Version = "1.0.0"
+	app.Version = "2.0.0"
+	app.Author = "Siddhartha Basu"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "output,o",
@@ -52,9 +52,8 @@ func main() {
 			Value: "https://github.com/google/protobuf",
 		},
 		cli.StringFlag{
-			Name:  "dictybase-repo",
-			Usage: "Repository containing protocol buffer definitions of dictybase api and services, will be checked out or updated under GOPATH",
-			Value: "https://github.com/dictyBase/dictybaseapis",
+			Name:  "input-folder,i",
+			Usage: "Folder containing protocol buffer definitions, will be looked up recursively",
 		},
 		cli.StringFlag{
 			Name:  "log-level",
@@ -109,29 +108,17 @@ func validateGenProto(c *cli.Context) error {
 
 func genProtoAction(c *cli.Context) error {
 	log := getLogger(c)
-	dictyDir, err := getFilePathFromRepo(c.String("dictybase-repo"))
-	if err != nil {
-		return cli.NewExitError(err.Error(), 2)
-	}
-	if _, err := os.Stat(dictyDir); os.IsNotExist(err) {
-		log.Debugf("repository %s does not exist at path %s, going to clone", c.String("dictybase-repo"), dictyDir)
-		_, err = git.PlainClone(dictyDir, false, &git.CloneOptions{URL: c.String("dictybase-repo")})
-		if err != nil {
-			return cli.NewExitError(
-				fmt.Sprintf("unable to clone %s repo %s", dictyDir, err),
-				2,
-			)
-		}
-		log.Infof("cloned repository %s at path %s", c.String("dictybase-repo"), dictyDir)
-	}
+	dictyDir := c.String("input-folder")
 	apiDir, err := cloneGitRepo(c.String("api-repo"), "master")
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
+	log.Debugf("cloned repo %s at %s", c.String("api-repo"), apiDir)
 	protoDir, err := cloneGitRepo(c.String("proto-repo"), "master")
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
+	log.Debugf("cloned repo %s at %s", c.String("proto-repo"), protoDir)
 	protoDir = filepath.Join(protoDir, "src")
 	pkgFiles := make(map[string][]string)
 	walkFn := func(path string, info os.FileInfo, err error) error {
@@ -174,79 +161,70 @@ func genProtoAction(c *cli.Context) error {
 		}
 		// extract the protobuf file names from the full path
 		names := Map(fnames, mapfn)
-		if out, err := runProtoc(output, includeDir, names, log); err != nil {
+		out, err := runProtoc(output, includeDir, names, log)
+		if err != nil {
 			return cli.NewExitError(
 				fmt.Sprintf("error in running protoc with output %s and error %s", string(out), err),
 				2,
 			)
-			log.Infof(
-				"ran protoc command on files %s with output %s",
-				strings.Join(fnames, " "),
-				string(out),
-			)
-		}
-		// gateway plugin does not follow the package path, so
-		// the exact path has to be given
-		goutput := filepath.Join(os.Getenv("GOPATH"), "src")
-		if out, err := runGrpcGateway(goutput, includeDir, names, log); err != nil {
-			return cli.NewExitError(
-				fmt.Sprintf("error in running protoc(grpc-gateway plugin) with output %s and error %s", string(out), err),
-				2,
-			)
-			log.Infof(
-				"ran protoc(grpc-gateway plugin) command on files %s with output %s",
-				strings.Join(fnames, " "),
-				string(out),
-			)
-		}
-		out, err := genProtoDocs(
-			goutput,
-			filepath.Join(goutput, c.String("prefix")),
-			includeDir,
-			names,
-			log,
-		)
-		if err != nil {
-			return cli.NewExitError(
-				fmt.Sprintf(
-					"error in running protoc(protoc-gen-doc plugin) with output %s and error %s",
-					string(out),
-					err,
-				),
-				2,
-			)
 		}
 		log.Infof(
-			"ran protoc(protoc-gen-doc plugin) command on files %s with output %s",
+			"ran protoc command on files %s with output %s",
 			strings.Join(fnames, " "),
 			string(out),
 		)
-		if !c.Bool("swagger-gen") {
-			continue
-		}
-		if out, err := genSwaggerDefinition(c.String("swagger-output"), includeDir, names, log); err != nil {
-			return cli.NewExitError(
-				fmt.Sprintf("error in running protoc(swagger generator plugin) with output %s and error %s", string(out), err),
-				2,
-			)
-			log.Infof(
-				"ran protoc(swagger generator plugin) command on files %s with output %s",
-				strings.Join(fnames, " "),
-				string(out),
-			)
-		}
+		// gateway plugin does not follow the package path, so
+		// the exact path has to be given
+		//goutput := filepath.Join(os.Getenv("GOPATH"), "src")
+		//if out, err := runGrpcGateway(goutput, includeDir, names, log); err != nil {
+		//return cli.NewExitError(
+		//fmt.Sprintf("error in running protoc(grpc-gateway plugin) with output %s and error %s", string(out), err),
+		//2,
+		//)
+		//log.Infof(
+		//"ran protoc(grpc-gateway plugin) command on files %s with output %s",
+		//strings.Join(fnames, " "),
+		//string(out),
+		//)
+		//}
+		//out, err := genProtoDocs(
+		//goutput,
+		//filepath.Join(goutput, c.String("prefix")),
+		//includeDir,
+		//names,
+		//log,
+		//)
+		//if err != nil {
+		//return cli.NewExitError(
+		//fmt.Sprintf(
+		//"error in running protoc(protoc-gen-doc plugin) with output %s and error %s",
+		//string(out),
+		//err,
+		//),
+		//2,
+		//)
+		//}
+		//log.Infof(
+		//"ran protoc(protoc-gen-doc plugin) command on files %s with output %s",
+		//strings.Join(fnames, " "),
+		//string(out),
+		//)
+		//if !c.Bool("swagger-gen") {
+		//continue
+		//}
+		//if out, err := genSwaggerDefinition(c.String("swagger-output"), includeDir, names, log); err != nil {
+		//return cli.NewExitError(
+		//fmt.Sprintf("error in running protoc(swagger generator plugin) with output %s and error %s", string(out), err),
+		//2,
+		//)
+		//log.Infof(
+		//"ran protoc(swagger generator plugin) command on files %s with output %s",
+		//strings.Join(fnames, " "),
+		//string(out),
+		//)
+		//}
 	}
 	return nil
-}
-
-func getFilePathFromRepo(repo string) (string, error) {
-	u, err := url.Parse(repo)
-	if err != nil {
-		return "", fmt.Errorf("unable to parse the given repository %s %s", repo, err)
-	}
-	// construct the full file path from repository
-	path := filepath.Join(os.Getenv("GOPATH"), "src", u.Host, u.Path)
-	return path, nil
 }
 
 func cloneGitRepo(repo, branch string) (string, error) {
