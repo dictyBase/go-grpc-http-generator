@@ -139,17 +139,17 @@ func genProtoAction(c *cli.Context) error {
 			2,
 		)
 	}
-	log.Debugf("cloned repo %s at %s", c.String("validator-repo"), valProtoDir)
+	log.Infof("cloned repo %s at %s", c.String("validator-repo"), valProtoDir)
 	apiDir, err := cloneGitRepo(c.String("api-repo"), "master", false)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
-	log.Debugf("cloned repo %s at %s", c.String("api-repo"), apiDir)
+	log.Infof("cloned repo %s at %s", c.String("api-repo"), apiDir)
 	protoDir, err := cloneGitRepo(c.String("proto-repo"), c.String("proto-repo-tag"), true)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
-	log.Debugf("cloned repo %s at %s", c.String("proto-repo"), protoDir)
+	log.Infof("cloned repo %s at %s", c.String("proto-repo"), protoDir)
 	protoDir = filepath.Join(protoDir, "src")
 
 	// include
