@@ -168,9 +168,8 @@ func genProtoAction(c *cli.Context) error {
 		if !strings.HasPrefix(pkg, c.String("prefix")) {
 			continue
 		}
-		var includeDir []string
 		// include the golang package folder dir as given in the proto definition files
-		includeDir = append(baseIncludeDir, filepath.Dir(fnames[0]))
+		includeDir := append(baseIncludeDir, filepath.Dir(fnames[0]))
 		// extract the protobuf file names from the full path
 		names := Map(fnames, func(path string) string {
 			return filepath.Base(path)
