@@ -109,7 +109,7 @@ func validateGenProto(c *cli.Context) error {
 	if c.Bool("swagger-gen") {
 		if len(c.String("swagger-output")) == 0 {
 			return cli.NewExitError(
-				"*swagger-ouput* have to be set for *swagger-gen* to work",
+				"*swagger-output* have to be set for *swagger-gen* to work",
 				2,
 			)
 		}
@@ -169,7 +169,7 @@ func genProtoAction(c *cli.Context) error {
 			continue
 		}
 		var includeDir []string
-		// include the golang package folder dir as given in the proto defintion files
+		// include the golang package folder dir as given in the proto definition files
 		includeDir = append(baseIncludeDir, filepath.Dir(fnames[0]))
 		// extract the protobuf file names from the full path
 		names := Map(fnames, func(path string) string {
