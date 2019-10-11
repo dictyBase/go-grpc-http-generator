@@ -204,7 +204,6 @@ func genProtoAction(c *cli.Context) error {
 		)
 
 		out, err = genProtoDocs(
-			output,
 			filepath.Join(output, c.String("prefix")),
 			includeDir,
 			names,
@@ -307,7 +306,7 @@ func genSwaggerDefinition(goOut string, includes, fnames []string) ([]byte, erro
 	return exec.Command("protoc", args...).CombinedOutput()
 }
 
-func genProtoDocs(goOut, folder string, includes, fnames []string) ([]byte, error) {
+func genProtoDocs(folder string, includes, fnames []string) ([]byte, error) {
 	doc := filepath.Join(folder, "docs")
 	if err := os.MkdirAll(doc, 0775); err != nil {
 		return []byte{}, err
