@@ -11,9 +11,6 @@ import (
 	"strings"
 
 	"github.com/urfave/cli"
-
-	git "gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
 var goPkgOptRe = regexp.MustCompile(`(?m)^option go_package = (.*);`)
@@ -135,7 +132,7 @@ func genProtoAction(c *cli.Context) error {
 		)
 	}
 
-	valProtoDir, err := cloneGitTag(c.String("validator-repo"), c.String("validator-repo-tag"))
+	valProtoDir, err := cloneGitRepo(c.String("validator-repo"), c.String("validator-repo-tag"), true)
 	if err != nil {
 		return cli.NewExitError(
 			fmt.Sprintf("error in cloning repo %s %s", c.String("validator-repo"), err),
@@ -143,12 +140,12 @@ func genProtoAction(c *cli.Context) error {
 		)
 	}
 	log.Debugf("cloned repo %s at %s", c.String("validator-repo"), valProtoDir)
-	apiDir, err := cloneGitRepo(c.String("api-repo"), "master")
+	apiDir, err := cloneGitRepo(c.String("api-repo"), "master", false)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
 	log.Debugf("cloned repo %s at %s", c.String("api-repo"), apiDir)
-	protoDir, err := cloneGitTag(c.String("proto-repo"), c.String("proto-repo-tag"))
+	protoDir, err := cloneGitRepo(c.String("proto-repo"), c.String("proto-repo-tag"), true)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
@@ -247,32 +244,6 @@ func genProtoAction(c *cli.Context) error {
 		)
 	}
 	return nil
-}
-
-func cloneGitTag(repo, tag string) (string, error) {
-	dir, err := ioutil.TempDir(os.TempDir(), "gclone")
-	if err != nil {
-		return "", fmt.Errorf("error in creating temp dir %s", err)
-	}
-	_, err = git.PlainClone(dir, false, &git.CloneOptions{
-		URL:           repo,
-		SingleBranch:  true,
-		ReferenceName: plumbing.NewTagReferenceName(tag),
-	})
-	return dir, err
-}
-
-func cloneGitRepo(repo, branch string) (string, error) {
-	dir, err := ioutil.TempDir(os.TempDir(), "gclone")
-	if err != nil {
-		return "", fmt.Errorf("error in creating temp dir %s", err)
-	}
-	_, err = git.PlainClone(dir, false, &git.CloneOptions{
-		URL:           repo,
-		SingleBranch:  true,
-		ReferenceName: plumbing.NewBranchReferenceName(branch),
-	})
-	return dir, err
 }
 
 // goPkg reports the import path declared in the given file's
