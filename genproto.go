@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -53,14 +54,29 @@ func main() {
 			Value: "v3.9.2",
 		},
 		cli.StringFlag{
-			Name:  "validator-repo",
-			Usage: "Repository containing protocol buffer definitions for validation, will be checked out",
-			Value: "https://github.com/mwitkow/go-proto-validators.git",
+			Name:  "validator-repo-owner",
+			Usage: "Owner of validator proto repository",
+			Value: "mwitkow",
 		},
 		cli.StringFlag{
-			Name:  "validator-repo-tag",
-			Usage: "Repository tag for validation protocol buffer",
+			Name:  "validator-repo-name",
+			Usage: "Name of validator repository",
+			Value: "go-proto-validators",
+		},
+		cli.StringFlag{
+			Name:  "validator-repo-version",
+			Usage: "Version of validator proto library",
 			Value: "v0.2.0",
+		},
+		cli.StringFlag{
+			Name:  "validator-proto-path",
+			Usage: "Validator proto library file path inside the repository",
+			Value: "validator.proto",
+		},
+		cli.StringFlag{
+			Name:  "validator-proto-local-path",
+			Usage: "Local path for validator proto file where it will be downloaded",
+			Value: "github.com/mwitkow/go-proto-validators",
 		},
 		cli.StringFlag{
 			Name:  "input-folder,i",
@@ -132,14 +148,11 @@ func genProtoAction(c *cli.Context) error {
 		)
 	}
 
-	valProtoDir, err := cloneGitRepo(c.String("validator-repo"), c.String("validator-repo-tag"), true)
+	valProtoDir, err := getValidatorProto(c)
 	if err != nil {
-		return cli.NewExitError(
-			fmt.Sprintf("error in cloning repo %s %s", c.String("validator-repo"), err),
-			2,
-		)
+		return cli.NewExitError(err.Error(), 2)
 	}
-	log.Infof("cloned repo %s at %s", c.String("validator-repo"), valProtoDir)
+	log.Infof("copied %s at %s", c.String("validator-proto-path"), valProtoDir)
 	apiDir, err := cloneGitRepo(c.String("api-repo"), "master", false)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
@@ -174,7 +187,7 @@ func genProtoAction(c *cli.Context) error {
 		names := Map(fnames, func(path string) string {
 			return filepath.Base(path)
 		})
-		out, err := runProtoc(output, includeDir, names)
+		out, err := runProtoc(output, includeDir, names, log)
 		if err != nil {
 			return cli.NewExitError(
 				fmt.Sprintf("error in running protoc with output %s and error %s", string(out), err),
@@ -186,6 +199,7 @@ func genProtoAction(c *cli.Context) error {
 			strings.Join(fnames, " "),
 			string(out),
 		)
+		log.Infof("wrote protobuf to %s", output)
 		// gateway plugin does not follow the package path, so
 		// the exact path has to be given
 		//goutput := filepath.Join(os.Getenv("GOPATH"), "src")
@@ -196,7 +210,7 @@ func genProtoAction(c *cli.Context) error {
 				2,
 			)
 		}
-		log.Infof(
+		log.Debugf(
 			"ran protoc(grpc-gateway plugin) command on files %s with output %s",
 			strings.Join(fnames, " "),
 			string(out),
@@ -269,7 +283,7 @@ func goPkg(fname string) (string, error) {
 // runProtoc executes the "protoc" command on files named in fnames,
 // passing go_out and include flags specified in goOut and includes respectively.
 // protoc returns combined output from stdout and stderr.
-func runProtoc(goOut string, includes, fnames []string) ([]byte, error) {
+func runProtoc(goOut string, includes, fnames []string, log *logrus.Logger) ([]byte, error) {
 	args := []string{
 		"--go_out=plugins=grpc:" + goOut,
 		"--govalidators_out=" + goOut,
