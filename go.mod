@@ -2,6 +2,7 @@ module github.com/dictyBase/go-grpc-http-generator
 
 require (
 	github.com/google/go-cmp v0.3.1 // indirect
+	github.com/google/go-github/v28 v28.1.1
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.4.0 // indirect
