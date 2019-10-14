@@ -165,6 +165,7 @@ func genProtoAction(c *cli.Context) error {
 	log.Infof("cloned repo %s at %s", c.String("proto-repo"), protoDir)
 	protoDir = filepath.Join(protoDir, "src")
 
+	defer removeAllTemp(apiDir, protoDir, valProtoDir)
 	// include
 	//	i)   cloned protocol buffer defintions
 	//	ii)  folder containing the protocol buffer files to compile
