@@ -1,0 +1,26 @@
+name: BuildImage
+on: push
+jobs:
+  dockerhub-build:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: check out code
+        uses: actions/checkout@v1
+      - name: build dockerhub image
+        run: docker build -t dictybase/go-grpc-http-generator -f build/package/Dockerfile .
+      - name: login to docker hub
+        run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
+      - name: push to docker hub
+        run: docker push dictybase/go-grpc-http-generator
+  github-build:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: check out code
+        uses: actions/checkout@v1
+      - name: build github package registry image
+        run: docker build -t docker.pkg.github.com/dictybase/go-grpc-http-generator/go-grpc-http-generator -f build/package/Dockerfile .
+      - name: login to github package registry
+        run: docker login docker.pkg.github.com -u dictybase -p ${{ secrets.GITHUB_REGISTRY_TOKEN }}
+      - name: push to github package registry
+        run: docker build -t docker.pkg.github.com/dictybase/go-grpc-http-generator/go-grpc-http-generator
+
