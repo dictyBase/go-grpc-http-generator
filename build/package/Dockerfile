@@ -5,7 +5,6 @@ RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/reposit
     && apk add --no-cache build-base curl git protobuf \
     && rm -rf /var/cache/apk/*
 
-ENV GOPROXY https://proxy.golang.org
 ENV GOLANG_PROTOBUF_VERSION=1.3.2
 ENV PROTOTOOL_VERSION=1.8.0
 ENV GO_PROTO_VALIDATORS=0.2.0
@@ -32,7 +31,7 @@ RUN go build -o app
 FROM dictybase/golang:1.11.13-alpine-edge
 LABEL maintainer="Siddhartha Basu <siddhartha-basu@northwestern.edu>"
 RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \
-    && apk add --no-cache ca-certificates protobuf tzdata \
+    && apk add --no-cache ca-certificates protobuf tzdata curl \
     && rm -rf /var/cache/apk/* \
     && cp /usr/share/zoneinfo/America/Chicago /etc/localtime \
     && echo "America/chicago" > /etc/timezone
@@ -55,4 +54,4 @@ COPY --from=protobuilder /go/bin/prototool /usr/local/bin/
 ## copy hub binary
 COPY --from=protobuilder /go/bin/hub /usr/local/bin/
 ## copy app
-COPY --from=protobuilder /go/bin/app /usr/local/bin/
+COPY --from=protobuilder /go-grpc-http-generator/app /usr/local/bin/
