@@ -22,5 +22,5 @@ jobs:
       - name: login to github package registry
         run: docker login docker.pkg.github.com -u dictybase -p ${{ secrets.GITHUB_REGISTRY_TOKEN }}
       - name: push to github package registry
-        run: docker build -t docker.pkg.github.com/dictybase/go-grpc-http-generator/go-grpc-http-generator
+        run: docker push docker.pkg.github.com/dictybase/go-grpc-http-generator/go-grpc-http-generator
 

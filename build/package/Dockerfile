@@ -1,5 +1,5 @@
 ## build prototool and go tools
-FROM docker.pkg.github.com/dictybase-docker/ci-builders/golang:1.12.10-alpine-edge AS protobuilder
+FROM dictybase/golang:1.12.10-alpine-edge AS protobuilder
 LABEL maintainer="Siddhartha Basu <siddhartha-basu@northwestern.edu>"
 RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \
     && apk add --no-cache build-base curl git protobuf \
@@ -29,7 +29,7 @@ COPY *.go ./
 RUN go build -o app
 
 # Runner image
-FROM docker.pkg.github.com/dictybase-docker/ci-builders/golang:1.11.13-alpine-edge
+FROM dictybase/golang:1.11.13-alpine-edge
 LABEL maintainer="Siddhartha Basu <siddhartha-basu@northwestern.edu>"
 RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \
     && apk add --no-cache ca-certificates protobuf tzdata \
