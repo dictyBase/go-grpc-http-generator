@@ -3,10 +3,9 @@ module github.com/dictyBase/go-grpc-http-generator
 require (
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/google/go-github/v28 v28.1.1
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.4.0 // indirect
-	github.com/urfave/cli v1.22.4
+	github.com/urfave/cli v1.22.5
 	golang.org/x/crypto v0.0.0-20191002192127-34f69633bfdc // indirect
 	golang.org/x/net v0.0.0-20191007182048-72f939374954 // indirect
 	golang.org/x/sys v0.0.0-20191008105621-543471e840be // indirect
