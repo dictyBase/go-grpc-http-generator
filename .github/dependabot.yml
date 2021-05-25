@@ -9,3 +9,11 @@ updates:
     timezone: America/Chicago
   open-pull-requests-limit: 99
   target-branch: master
+- package-ecosystem: github-actions
+  target-branch: develop
+  directory: "/"
+  schedule:
+    interval: weekly
+    day: saturday
+    time: "11:00"
+    timezone: America/Chicago
