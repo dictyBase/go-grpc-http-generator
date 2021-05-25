@@ -1,26 +1,32 @@
-name: BuildImage
+name: Build Image
 on: push
 jobs:
-  dockerhub-build:
-    runs-on: ubuntu-18.04
+  build:
+    runs-on: ubuntu-20.04
     steps:
       - name: check out code
-        uses: actions/checkout@v1
-      - name: build dockerhub image
-        run: docker build -t dictybase/go-grpc-http-generator -f build/package/Dockerfile .
-      - name: login to docker hub
-        run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-      - name: push to docker hub
-        run: docker push dictybase/go-grpc-http-generator
-  github-build:
-    runs-on: ubuntu-18.04
-    steps:
-      - name: check out code
-        uses: actions/checkout@v1
-      - name: build github package registry image
-        run: docker build -t docker.pkg.github.com/dictybase/go-grpc-http-generator/go-grpc-http-generator -f build/package/Dockerfile .
-      - name: login to github package registry
-        run: docker login docker.pkg.github.com -u dictybase -p ${{ secrets.GITHUB_REGISTRY_TOKEN }}
-      - name: push to github package registry
-        run: docker push docker.pkg.github.com/dictybase/go-grpc-http-generator/go-grpc-http-generator
-
+        uses: actions/checkout@v2
+      - name: log into dockerhub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: log into github packages docker registry
+        uses: docker/login-action@v1
+        with:
+          registry: docker.pkg.github.com
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: get short sha
+        id: vars
+        run: |
+          sha=$(git rev-parse --short HEAD)
+          echo ::set-output name=id::${sha}
+      - name: docker build and push
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          file: build/package/Dockerfile
+          tags: |
+            dictybase/go-grpc-http-generator-${{ steps.vars.outputs.id }}
+            docker.pkg.github.com/dictybase/go-grpc-http-generator/go-grpc-http-generator-${{ steps.vars.outputs.id }}
