@@ -8,7 +8,7 @@ RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/reposit
 ENV GOLANG_PROTOBUF_VERSION=1.3.2
 ENV PROTOTOOL_VERSION=1.8.0
 ENV GO_PROTO_VALIDATORS=0.2.0
-ENV PROTOC_GEN_DOC=1.3.0
+ENV PROTOC_GEN_DOC=1.3.2
 ENV HUB_VERSION=2.12.8
 ENV GO111MODULE=on
 # build all protocol buffer prerequisites
